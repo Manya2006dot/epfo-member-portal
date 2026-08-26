@@ -1,0 +1,58 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id String @id @default(cuid())
+  email String @unique
+  passwordHash String
+  fullName String
+  uan String @unique
+  memberId String @unique
+  mobile String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  contributions Contribution[]
+  claims Claim[]
+  nominees Nominee[]
+}
+model Contribution {
+ id String @id @default(cuid())
+ userId String
+ month DateTime
+ employeeShare Int
+ employerShare Int
+ pensionShare Int
+ status String @default("Credited")
+ createdAt DateTime @default(now())
+ user User @relation(fields:[userId], references:[id], onDelete: Cascade)
+ @@index([userId, month])
+}
+model Claim {
+ id String @id @default(cuid())
+ userId String
+ claimNumber String @unique
+ type String
+ amount Int
+ status String @default("Under Process")
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ user User @relation(fields:[userId], references:[id], onDelete: Cascade)
+ @@index([userId, status])
+}
+model Nominee {
+ id String @id @default(cuid())
+ userId String
+ name String
+ relationship String
+ dob DateTime
+ share Int
+ status String @default("Active")
+ user User @relation(fields:[userId], references:[id], onDelete: Cascade)
+ @@index([userId])
+}
