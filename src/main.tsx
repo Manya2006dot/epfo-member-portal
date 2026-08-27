@@ -19,83 +19,88 @@ function MyPF({data,onUpdate}:{data:Data;onUpdate:()=>void}){return <><div class
 function Claims({data,token,reload,toast}:{data:Data;token:string;reload:()=>void;toast:(x:string)=>void}){const [show,setShow]=useState(false);const submit=async(e:any)=>{e.preventDefault();const f=new FormData(e.currentTarget);try{await request('/claims',{method:'POST',body:JSON.stringify({type:f.get('type'),amount:Number(f.get('amount'))})},token);setShow(false);toast('Claim submitted successfully.');reload()}catch(e:any){toast(e.message)}};return <><div className="split-title"><div><h2>Claims</h2><p>Track and manage your claims</p></div><button className="primary" onClick={()=>setShow(true)}><Plus size={15}/>Apply for Claim</button></div><div className="table-wrap"><table><thead><tr><th>Claim ID</th><th>Claim Type</th><th>Date of Claim</th><th>Status</th><th>Amount (₹)</th><th></th></tr></thead><tbody>{data.claims.map(c=><tr key={c.id}><td>{c.claimNumber}</td><td>{c.type}</td><td>{new Date(c.createdAt).toLocaleDateString('en-IN')}</td><td><em className={c.status==='Settled'?'':'amber'}>{c.status}</em></td><td>{c.amount.toLocaleString()}</td><td><button className="link">View</button></td></tr>)}</tbody></table></div>{show&&<Modal title="Apply for a claim" onClose={()=>setShow(false)}><form onSubmit={submit}><label>Claim type<select name="type"><option>PF Withdrawal</option><option>PF Advance</option></select></label><label>Amount (₹)<input name="amount" type="number" min="1" required placeholder="e.g. 15000"/></label><button className="primary wide">Submit claim</button></form></Modal>}</>}
 function Nominees({data,token,reload,toast}:{data:Data;token:string;reload:()=>void;toast:(x:string)=>void}){const [show,setShow]=useState(false);const add=async(e:any)=>{e.preventDefault();const f=new FormData(e.currentTarget);try{await request('/nominees',{method:'POST',body:JSON.stringify({name:f.get('name'),relationship:f.get('relationship'),dob:f.get('dob'),share:Number(f.get('share'))})},token);setShow(false);toast('Nominee added.');reload()}catch(e:any){toast(e.message)}};const remove=async(id:string)=>{try{await request('/nominees/'+id,{method:'DELETE'},token);toast('Nominee removed.');reload()}catch(e:any){toast(e.message)}};return <><div className="split-title"><div><h2>Nominee Details</h2><p>Secure your EPF benefits for your family</p></div><button className="primary" onClick={()=>setShow(true)}><Plus size={15}/>Add Nominee</button></div><div className="table-wrap"><table><thead><tr><th>Name</th><th>Relationship</th><th>Date of Birth</th><th>Share (%)</th><th>Status</th><th></th></tr></thead><tbody>{data.nominees.map(n=><tr key={n.id}><td>{n.name}</td><td>{n.relationship}</td><td>{new Date(n.dob).toLocaleDateString('en-IN')}</td><td>{n.share}%</td><td><em>Active</em></td><td><button aria-label="Delete nominee" className="delete" onClick={()=>remove(n.id)}>×</button></td></tr>)}</tbody></table></div>{show&&<Modal title="Add nominee" onClose={()=>setShow(false)}><form onSubmit={add}><label>Full name<input name="name" required/></label><label>Relationship<input name="relationship" required placeholder="e.g. Spouse"/></label><label>Date of birth<input name="dob" type="date" required/></label><label>Share (%)<input name="share" type="number" min="1" max="100" required/></label><button className="primary wide">Add nominee</button></form></Modal>}</>}
 function Help(){return <><div className="split-title"><div><h2>How can we help you?</h2><p>Find answers or get in touch with EPFO support</p></div></div><div className="help-grid"><div>{[['FAQ','Find answers to frequently asked questions'],['Raise a Grievance','Report an issue and track status'],['Contact Us','Get in touch with EPFO support'],['Locate Office','Find nearest EPFO office']].map(([a,b])=><article className="help-card" key={a}><CircleHelp/><div><b>{a}</b><p>{b}</p></div></article>)}</div><article className="ai"><Bot/><h3>Ask EPFO AI</h3><p>I can help you with UAN, KYC, claims, transfers, passbook and more.</p><div className="suggestions">{['How do I activate my UAN?','Why is my claim rejected?','How to transfer PF after job change?'].map(x=><button key={x}>{x}</button>)}</div><input placeholder="Type your question..." aria-label="Ask EPFO AI"/></article></div></>}
-function Login({setAuth}:{setAuth:(x:any)=>void}){const [error,setError]=useState(''),[busy,setBusy]=useState(false);const submit=async(e:any)=>{e.preventDefault();setBusy(true);const f=new FormData(e.currentTarget);try{const d=await request('/auth/login',{method:'POST',body:JSON.stringify({email:f.get('email'),password:f.get('password')})});localStorage.setItem('epfo-token',d.token);setAuth(d)}catch(e:any){setError(e.message)}finally{setBusy(false)}};return <main className="login-page"><section className="login-card"><Logo/><div className="login-illustration"><ShieldCheck/><h1>Your EPF journey,<br/><em>made easy.</em></h1><p>One secure place to view your balance, contributions and claims.</p></div><form onSubmit={submit}><h2>Welcome back</h2><p>Sign in to access your EPFO member portal.</p>{error&&<div className="error">{error}</div>}<label>Email<input name="email" type="email" defaultValue="member@epfo.demo" required/></label><label>Password<input name="password" type="password" defaultValue="Demo@123" required/></label><button className="primary wide" disabled={busy}>{busy?'Signing in…':'Sign in'}</button><small>Demo credentials are pre-filled for you.</small></form></section></main>}
 function App(){
-  const [auth,setAuth]=useState<any>(null);
-  const [data,setData]=useState<Data|null>(null);
   const [page,setPage]=useState('Overview');
   const [toast,setToast]=useState('');
 
-  const load=async(token:string)=>{
-    try{
-      const d=await request('/dashboard',{},token);
-      setData(d);
-      setAuth({token,user:d.user});
-    }catch(e){
-      console.error(e);
-    }
-  };
-
-  useEffect(()=>{
-    const start=async()=>{
-      let token=localStorage.getItem('epfo-token');
-
-      if(!token){
-        try{
-          const d=await request('/auth/login',{
-            method:'POST',
-            body:JSON.stringify({
-              email:'member@epfo.demo',
-              password:'Demo@123'
-            })
-          });
-
-          token=d.token;
-          localStorage.setItem('epfo-token', token!);
-        }catch(e){
-          console.error('Automatic login failed:',e);
-          return;
-        }
+  const data:Data={
+    user:{
+      fullName:'Manya C R',
+      uan:'100123456789',
+      memberId:'BGBNG00123450000012345',
+      mobile:'9876543210',
+      email:'member@epfo.demo'
+    },
+    contributions:[
+      {id:'1',month:'2026-05-01',employeeShare:1800,employerShare:550,pensionShare:1250},
+      {id:'2',month:'2026-04-01',employeeShare:1800,employerShare:550,pensionShare:1250},
+      {id:'3',month:'2026-03-01',employeeShare:1800,employerShare:550,pensionShare:1250},
+      {id:'4',month:'2026-02-01',employeeShare:1800,employerShare:550,pensionShare:1250}
+    ],
+    claims:[
+      {
+        id:'1',
+        claimNumber:'CLM2026001234',
+        type:'PF Advance',
+        createdAt:'2026-05-10',
+        status:'Settled',
+        amount:15000
       }
-
-      await load(token!);
-    };
-
-    start();
-  },[]);
-
-  useEffect(()=>{
-    if(toast){
-      const t=setTimeout(()=>setToast(''),3500);
-      return()=>clearTimeout(t);
+    ],
+    nominees:[
+      {
+        id:'1',
+        name:'Priya C R',
+        relationship:'Mother',
+        dob:'1978-06-15',
+        share:100
+      }
+    ],
+    totals:{
+      employee:7200,
+      employer:2200,
+      total:9400
     }
-  },[toast]);
-
-  if(!data){
-    return <div className="loading">Loading your EPF details…</div>;
-  }
-
-  const logout=()=>{
-    localStorage.removeItem('epfo-token');
-    setAuth(null);
-    setData(null);
   };
+
+  const logout=()=>{};
 
   let body=
-    page==='Overview'?<Overview data={data} setPage={setPage}/>:
-    page==='Passbook'?<Passbook data={data}/>:
-    page==='Claims'?<Claims data={data} token={auth.token} reload={()=>load(auth.token)} toast={setToast}/>:
-    page==='My PF'?<MyPF data={data} onUpdate={()=>setToast('Your KYC update request has been started.')}/>:
-    page==='My Journey'?<Nominees data={data} token={auth.token} reload={()=>load(auth.token)} toast={setToast}/>:
-    <Help/>;
+    page==='Overview'
+      ? <Overview data={data} setPage={setPage}/>
+      : page==='Passbook'
+      ? <Passbook data={data}/>
+      : page==='Claims'
+      ? <Claims data={data} token="" reload={()=>{}} toast={setToast}/>
+      : page==='My PF'
+      ? <MyPF data={data} onUpdate={()=>setToast('Your KYC update request has been started.')}/>
+      : page==='My Journey'
+      ? <Nominees data={data} token="" reload={()=>{}} toast={setToast}/>
+      : <Help/>;
 
-  return <div className="app">
-    <Sidebar page={page} setPage={setPage} logout={logout}/>
-    <main className="content">
-      <Header title={page} user={data.user}/>
-      {body}
-    </main>
-    {toast&&<div className="toast"><CheckCircle2/> {toast}</div>}
-  </div>;
+  return (
+    <div className="app">
+      <Sidebar
+        page={page}
+        setPage={setPage}
+        logout={logout}
+      />
+
+      <main className="content">
+        <Header
+          title={page}
+          user={data.user}
+        />
+
+        {body}
+      </main>
+
+      {toast&&(
+        <div className="toast">
+          <CheckCircle2/> {toast}
+        </div>
+      )}
+    </div>
+  );
 }
 createRoot(document.getElementById('root')!).render(<StrictMode><App/></StrictMode>);
